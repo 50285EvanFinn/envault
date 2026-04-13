@@ -1,65 +1,59 @@
-import { readVault, writeVault, vaultExists, ensureVaultDir } from '../storage/vaultFile';
-import { encrypt, decrypt } from '../crypto/vault';
-import { createEntry, updateEntry, createEmptyVault } from './envEntry';
-import type { VaultData, EnvEntry } from './index';
+import { Vault, EnvEntry } from './envEntry';
+import { createEntry, updateEntry } from './envEntry';
 
-export class EnvManager {
-  private vault: VaultData;
-  private vaultPath: string;
-  private password: string;
-
-  constructor(vault: VaultData, vaultPath: string, password: string) {
-    this.vault = vault;
-    this.vaultPath = vaultPath;
-    this.password = password;
-  }
-
-  get(key: string): string | undefined {
-    const entry = this.vault.entries[key];
-    return entry?.value;
-  }
-
-  set(key: string, value: string): void {
-    const existing = this.vault.entries[key];
-    if (existing) {
-      this.vault.entries[key] = updateEntry(existing, value);
-    } else {
-      this.vault.entries[key] = createEntry(key, value);
-    }
-  }
-
-  delete(key: string): boolean {
-    if (!this.vault.entries[key]) return false;
-    delete this.vault.entries[key];
-    return true;
-  }
-
-  listKeys(): string[] {
-    return Object.keys(this.vault.entries).sort();
-  }
-
-  has(key: string): boolean {
-    return key in this.vault.entries;
-  }
-
-  async save(): Promise<void> {
-    await ensureVaultDir(this.vaultPath);
-    const serialized = JSON.stringify(this.vault);
-    const encrypted = await encrypt(serialized, this.password);
-    await writeVault(this.vaultPath, encrypted);
-  }
+export function getEntry(vault: Vault, key: string): EnvEntry | undefined {
+  return vault.entries[key];
 }
 
-export async function loadEnvManager(vaultPath: string, password: string): Promise<EnvManager> {
-  let vault: VaultData;
+export function setEntry(vault: Vault, key: string, value: string): Vault {
+  const existing = vault.entries[key];
+  const entry = existing
+    ? updateEntry(existing, value)
+    : createEntry(key, value);
+  return {
+    ...vault,
+    entries: {
+      ...vault.entries,
+      [key]: entry,
+    },
+  };
+}
 
-  if (await vaultExists(vaultPath)) {
-    const encrypted = await readVault(vaultPath);
-    const decrypted = await decrypt(encrypted, password);
-    vault = JSON.parse(decrypted) as VaultData;
-  } else {
-    vault = createEmptyVault();
+export function removeEntry(vault: Vault, key: string): Vault {
+  const { [key]: _, ...rest } = vault.entries;
+  return { ...vault, entries: rest };
+}
+
+export function listEntries(vault: Vault): EnvEntry[] {
+  return Object.values(vault.entries);
+}
+
+export function hasEntry(vault: Vault, key: string): boolean {
+  return key in vault.entries;
+}
+
+export function mergeVaults(
+  base: Vault,
+  incoming: Vault,
+  strategy: 'overwrite' | 'skip' = 'overwrite'
+): Vault {
+  let result = { ...base };
+  for (const [key, entry] of Object.entries(incoming.entries)) {
+    if (strategy === 'skip' && hasEntry(result, key)) {
+      continue;
+    }
+    result = setEntry(result, key, entry.value);
   }
+  return result;
+}
 
-  return new EnvManager(vault, vaultPath, password);
+export function filterEntries(vault: Vault, predicate: (entry: EnvEntry) => boolean): Vault {
+  const filtered = Object.fromEntries(
+    Object.entries(vault.entries).filter(([, entry]) => predicate(entry))
+  );
+  return { ...vault, entries: filtered };
+}
+
+export function countEntries(vault: Vault): number {
+  return Object.keys(vault.entries).length;
 }
