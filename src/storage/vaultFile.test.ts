@@ -59,6 +59,19 @@ describe('vaultFile', () => {
     expect(vaultExists()).toBe(false);
   });
 
+  test('deleteVault throws when vault does not exist', () => {
+    if (fs.existsSync(VAULT_FILE)) fs.unlinkSync(VAULT_FILE);
+    expect(() => deleteVault()).toThrow('Vault does not exist');
+  });
+
+  test('writeVault overwrites existing vault with new data', () => {
+    writeVault(mockVaultData);
+    const updated: VaultData = { ...mockVaultData, ciphertext: 'newpayload==' };
+    writeVault(updated);
+    const data = readVault();
+    expect(data.ciphertext).toBe('newpayload==');
+  });
+
   test('ensureVaultDir creates directory if missing', () => {
     ensureVaultDir();
     expect(fs.existsSync(VAULT_DIR)).toBe(true);
