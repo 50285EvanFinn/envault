@@ -52,3 +52,23 @@ export function listSnapshots(store: SnapshotStore): Snapshot[] {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
+
+/**
+ * Returns the keys that differ between two snapshots, including keys that
+ * were added or removed. Useful for diffing environment state over time.
+ */
+export function diffSnapshots(
+  a: Snapshot,
+  b: Snapshot
+): { added: string[]; removed: string[]; changed: string[] } {
+  const keysA = new Set(Object.keys(a.entries));
+  const keysB = new Set(Object.keys(b.entries));
+
+  const added = [...keysB].filter((k) => !keysA.has(k));
+  const removed = [...keysA].filter((k) => !keysB.has(k));
+  const changed = [...keysA].filter(
+    (k) => keysB.has(k) && a.entries[k].value !== b.entries[k].value
+  );
+
+  return { added, removed, changed };
+}
