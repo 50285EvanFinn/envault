@@ -52,4 +52,18 @@ describe('vault encryption', () => {
 
     expect(() => decrypt(tampered, TEST_PASSWORD)).toThrow();
   });
+
+  it('throws when the IV is tampered with', () => {
+    const payload = encrypt(TEST_PLAINTEXT, TEST_PASSWORD);
+    const tampered: EncryptedPayload = { ...payload, iv: payload.iv.replace(/a/g, 'b') };
+
+    expect(() => decrypt(tampered, TEST_PASSWORD)).toThrow();
+  });
+
+  it('handles encrypting an empty string', () => {
+    const payload = encrypt('', TEST_PASSWORD);
+    const result = decrypt(payload, TEST_PASSWORD);
+
+    expect(result).toBe('');
+  });
 });
