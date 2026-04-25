@@ -25,6 +25,13 @@ describe("envAlias", () => {
     expect(() => setAlias(store, "alias", "")).toThrow();
   });
 
+  it("overwrites an existing alias with a new key", () => {
+    let store = createEmptyAliasStore();
+    store = setAlias(store, "db", "DATABASE_URL");
+    store = setAlias(store, "db", "POSTGRES_URL");
+    expect(store.aliases["db"]).toBe("POSTGRES_URL");
+  });
+
   it("removes an alias", () => {
     let store = createEmptyAliasStore();
     store = setAlias(store, "db", "DATABASE_URL");
@@ -53,6 +60,11 @@ describe("envAlias", () => {
     expect(aliases).toHaveLength(2);
   });
 
+  it("returns empty array when no aliases exist for a key", () => {
+    const store = createEmptyAliasStore();
+    expect(getAliasesForKey(store, "NONEXISTENT_KEY")).toEqual([]);
+  });
+
   it("lists all aliases", () => {
     let store = createEmptyAliasStore();
     store = setAlias(store, "db", "DATABASE_URL");
@@ -61,5 +73,10 @@ describe("envAlias", () => {
     expect(all).toHaveLength(2);
     expect(all).toContainEqual({ alias: "db", key: "DATABASE_URL" });
     expect(all).toContainEqual({ alias: "port", key: "PORT" });
+  });
+
+  it("lists no aliases for an empty store", () => {
+    const store = createEmptyAliasStore();
+    expect(listAllAliases(store)).toEqual([]);
   });
 });
